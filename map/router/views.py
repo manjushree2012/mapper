@@ -4,7 +4,7 @@ from .serializers import RouteRequestSerializer
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .services import GeoCodeService
+from .services import GeoCodeService, RouteService
 
 @api_view(['POST'])
 def get_route(request):
@@ -41,8 +41,14 @@ def get_route(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-    # Go code the location so that we get respective latitide and longtitude
-
+    # Step 3: Now get the route from start to end point
+    route_service = RouteService()
+    route_data = route_service.get_route(start_location_cords,end_location_cords)
+    if not route_data or 'routes' not in route_data:
+        return Response(
+            {"error": "Could not calculate route between the given locations"}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
     
 

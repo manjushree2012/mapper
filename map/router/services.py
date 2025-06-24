@@ -33,4 +33,42 @@ class GeoCodeService:
             print(f"Geocoding error: {e}")
             return None
 
-      
+
+class RouteService:
+    """Service for gettingroute given start and end point"""     
+
+    def __init__(self):
+        self.api_key = settings.ORS_API_KEY
+        self.base_url = "https://api.openrouteservice.org"
+
+    def get_route(self, start_coords, end_coords):
+        url = f"{self.base_url}/v2/directions/driving-car"
+
+        # ORS expects coordinates as [longitude, latitude]
+        coordinates = [
+            [start_coords[1], start_coords[0]],  # start: [lon, lat]
+            [end_coords[1], end_coords[0]]       # end: [lon, lat]
+        ]
+
+        payload = {
+            'coordinates': coordinates,
+            'format': 'json',
+            'instructions': True,
+            'geometry': True,
+            'elevation': False
+        }
+
+        headers = {
+            'Accept': 'application/json',
+            'Authorization': self.api_key,
+            'Content-Type': 'application/json'
+        }
+
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=30)
+            response.raise_for_status()
+            return response.json()
+            
+        except requests.exceptions.RequestException as e:
+            print(f"Routing error: {e}")
+            return None
