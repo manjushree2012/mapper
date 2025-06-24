@@ -1,6 +1,9 @@
 import requests
 from typing import Tuple, Optional, Dict
 from django.conf import settings
+from django.core.cache import cache
+import hashlib
+import json
 
 class GeoCodeService:
     """Service for converting a location name to its end co-ordinates"""
@@ -9,7 +12,19 @@ class GeoCodeService:
         self.api_key = settings.ORS_API_KEY
         self.base_url = "https://api.openrouteservice.org"
     
+    def _cache_key(self, location: str) -> str:
+        # Normalize and hash to prevent Redis key issues
+        normalized = location.strip().lower()
+        return "geocode:" + hashlib.md5(normalized.encode()).hexdigest()
+
     def geocode(self, location: str) -> Optional[Tuple[float, float]]:
+        # Try to get coordinates from cache first
+        key = self._cache_key(location)
+        cached_value = cache.get(key)
+        if cached_value:
+            return tuple(json.loads(cached_value))
+
+        # If not in cache, make API call
         url = "https://api.openrouteservice.org/geocode/search"
         params = {
             "api_key" : settings.ORS_API_KEY,
@@ -25,7 +40,10 @@ class GeoCodeService:
 
             if data['features']:
                 coords = data['features'][0]['geometry']['coordinates']
-                return (coords[1], coords[0])  # Return as (lat, lon)
+                result = (coords[1], coords[0])  # Convert to (lat, lon)
+                # Store in cache for 30 days (in seconds)
+                cache.set(key, json.dumps(result), timeout=30 * 24 * 60 * 60)
+                return result
             return None
         
         except requests.exceptions.RequestException as e:
