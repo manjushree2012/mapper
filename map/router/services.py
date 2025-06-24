@@ -17,7 +17,6 @@ class GeoCodeService:
             'boundary.country': 'US', #Inside US only for the asssignment purpose
             'size': 1
         }
-        print(params)
         
         try:
             response = requests.get(url, params=params, timeout=10)
@@ -32,7 +31,6 @@ class GeoCodeService:
         except requests.exceptions.RequestException as e:
             print(f"Geocoding error: {e}")
             return None
-
 
 class RouteService:
     """Service for gettingroute given start and end point"""     
