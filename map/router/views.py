@@ -49,8 +49,32 @@ def get_route(request):
             {"error": "Could not calculate route between the given locations"}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
     
-
-
-    return HttpResponse("Welcome, ! Here you canget the route from third party API")
+    # Step 4: Extract rouute information
+    route = route_data['routes'][0]
+    summary = route['summary']
+    
+    # Convert distances and durations
+    distance_meters = summary['distance']
+    duration_seconds = summary['duration']
+    
+    distance_km = distance_meters / 1000
+    distance_miles = distance_km * 0.621371
+    duration_minutes = duration_seconds / 60
+    duration_hours = duration_minutes / 60
+    
+    # Prepare response
+    response_data = {
+        'start_location': start_location,
+        'end_location': end_location,
+        'start_coordinates': [start_location_cords[0], start_location_cords[1]],  # [lat, lon]
+        'end_coordinates': [end_location_cords[0], end_location_cords[1]],        # [lat, lon]
+        'total_distance_miles': round(distance_miles, 2),
+        'total_distance_km': round(distance_km, 2),
+        'total_duration_minutes': round(duration_minutes, 2),
+        'total_duration_hours': round(duration_hours, 2),
+        'route_geometry': route['geometry'],
+        'route_instructions': route.get('segments', [{}])[0].get('steps', [])
+    }
+        
+    return Response(response_data, status=status.HTTP_200_OK)
