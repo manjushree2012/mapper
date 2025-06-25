@@ -88,3 +88,99 @@ class RouteService:
         except requests.exceptions.RequestException as e:
             print(f"Routing error: {e}")
             return None
+
+
+import csv
+from typing import List, Tuple, Optional
+from geopy.distance import geodesic
+from dataclasses import dataclass
+
+@dataclass
+class FuelStation:
+    name: str
+    latitude: float
+    longitude: float
+    fuel_price: float
+
+
+class FuelPlannerService:
+    def __init__(self, csv_path: str, fuel_range_miles: float = 500, mpg: float = 10):
+        self.csv_path = csv_path
+        self.fuel_range_miles = fuel_range_miles
+        self.mpg = mpg
+        self.stations = self._load_stations()
+
+    def _load_stations(self) -> List[FuelStation]:
+        stations = []
+        with open(self.csv_path, newline='') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                try:
+                    stations.append(FuelStation(
+                        name=row['Truckstop Name'],
+                        latitude=float(row['Address'].split(',')[0]),  # NOTE: Not reliable
+                        longitude=float(row['Address'].split(',')[1]),  # Replace this line properly
+                        fuel_price=float(row['Retail Price'])
+                    ))
+                except Exception as e:
+                    continue  # Skip rows with bad data
+        return stations
+
+    def _find_best_station_near_point(
+        self, point: Tuple[float, float], max_distance_miles: float = 25
+    ) -> Optional[FuelStation]:
+        lat, lon = point
+        degree_buffer = max_distance_miles / 69.0  # Rough approximation
+
+        nearby_stations = [
+            s for s in self.stations
+            if (lat - degree_buffer <= s.latitude <= lat + degree_buffer) and
+               (lon - degree_buffer <= s.longitude <= lon + degree_buffer)
+        ]
+
+        # Filter by real distance and select cheapest
+        filtered = []
+        for s in nearby_stations:
+            dist = geodesic(point, (s.latitude, s.longitude)).miles
+            if dist <= max_distance_miles:
+                filtered.append(s)
+
+        if filtered:
+            return sorted(filtered, key=lambda s: s.fuel_price)[0]
+        return None
+
+    def _get_fuel_stop_points(self, route_coords: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+        stops = []
+        distance = 0
+        for i in range(1, len(route_coords)):
+            segment = geodesic(route_coords[i - 1], route_coords[i]).miles
+            distance += segment
+            if distance >= self.fuel_range_miles:
+                stops.append(route_coords[i])
+                distance = 0
+        return stops
+
+    def plan_stops(self, route_coords: List[Tuple[float, float]]) -> Tuple[List[dict], float]:
+        stops = self._get_fuel_stop_points(route_coords)
+        stop_results = []
+        total_cost = 0
+
+        for point in stops:
+            station = self._find_best_station_near_point(point)
+            if station:
+                gallons = self.fuel_range_miles / self.mpg
+                cost = station.fuel_price * gallons
+                total_cost += cost
+
+                stop_results.append({
+                    'station_name': station.name,
+                    'location': {
+                        'lat': station.latitude,
+                        'lon': station.longitude
+                    },
+                    'price_per_gallon': round(station.fuel_price, 2),
+                    'gallons': round(gallons, 2),
+                    'cost': round(cost, 2)
+                })
+
+        return stop_results, round(total_cost, 2)

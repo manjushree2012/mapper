@@ -62,7 +62,15 @@ def get_route(request):
     distance_miles = distance_km * 0.621371
     duration_minutes = duration_seconds / 60
     duration_hours = duration_minutes / 60
-    
+
+    from openrouteservice import convert
+    # Decode the polyline to a list of (lat, lon) tuples
+    route_coords = convert.decode_polyline(route['geometry'])
+
+    from .services import FuelPlannerService
+    fuel_planner = FuelPlannerService(csv_path='fuel-prices.csv')
+    fuel_stops, total_cost = fuel_planner.plan_stops(route_coords)
+
     # Prepare response
     response_data = {
         'start_location': start_location,
@@ -73,6 +81,8 @@ def get_route(request):
         'total_distance_km': round(distance_km, 2),
         'total_duration_minutes': round(duration_minutes, 2),
         'total_duration_hours': round(duration_hours, 2),
+        'total_fuel_cost': total_cost,
+        'fuel_stops': fuel_stops,
         'route_geometry': route['geometry'],
         'route_instructions': route.get('segments', [{}])[0].get('steps', [])
     }
