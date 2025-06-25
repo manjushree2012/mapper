@@ -35,9 +35,9 @@ class GeoCodeService:
             return tuple(json.loads(cached_value))
 
         # If not in cache, make API call
-        url = "https://api.openrouteservice.org/geocode/search"
+        url = f"{self.base_url}/geocode/search"
         params = {
-            "api_key" : settings.ORS_API_KEY,
+            "api_key" : self.api_key,
             "text" : location,
             'boundary.country': 'US', #Inside US only for the asssignment purpose
             'size': 1
