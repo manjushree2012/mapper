@@ -81,10 +81,10 @@ def get_route(request):
         'total_distance_km': round(distance_km, 2),
         'total_duration_minutes': round(duration_minutes, 2),
         'total_duration_hours': round(duration_hours, 2),
+        'route_geometry': route['geometry'],
+        'route_instructions': route.get('segments', [{}])[0].get('steps', []),
         'total_fuel_cost': total_cost,
         'fuel_stops': fuel_stops,
-        'route_geometry': route['geometry'],
-        'route_instructions': route.get('segments', [{}])[0].get('steps', [])
     }
         
     return Response(response_data, status=status.HTTP_200_OK)
