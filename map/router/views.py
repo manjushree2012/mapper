@@ -1,10 +1,20 @@
-from django.shortcuts import render
-from django.http import HttpResponse
+# Standard library imports
+import os
+
+# Django imports
+from django.conf import settings
+
+# Third-party imports
+from openrouteservice import convert
+from shapely.geometry import LineString
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .services import RouteService
+
+# Local application imports
+from .services import FuelPlannerService, RouteService
 from .validation import RouteValidationService
+
 
 @api_view(['POST'])
 def get_route(request):
@@ -46,18 +56,14 @@ def get_route(request):
     duration_minutes = duration_seconds / 60
     duration_hours = duration_minutes / 60
 
-    from openrouteservice import convert
     # Decode the polyline to a list of (lat, lon) tuples
     route_coords = convert.decode_polyline(route['geometry'])
 
-    from shapely.geometry import LineString
     # Convert to LineString and buffer to get polygon
     line = LineString([(pt[1], pt[0]) for pt in route_coords['coordinates']])  # (lon, lat)
     route_polygon = line.buffer(0.1) #Create a buffer around that route
 
-    from .services import FuelPlannerService
-    import os
-    from django.conf import settings
+
     csv_path = os.path.join(settings.BASE_DIR, 'data', 'fuel-prices.csv')  # if stored in /data/
     fuel_planner = FuelPlannerService(csv_path=csv_path, route_polygon=route_polygon)
 
