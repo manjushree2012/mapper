@@ -102,28 +102,49 @@ class FuelStation:
     longitude: float
     fuel_price: float
 
+from shapely.geometry import Point
 
 class FuelPlannerService:
-    def __init__(self, csv_path: str, fuel_range_miles: float = 500, mpg: float = 10):
+    def __init__(self,
+                 csv_path: str,
+                 fuel_range_miles: float = 500,
+                 mpg: float = 10,
+                 route_polygon=None
+                 ):
         self.csv_path = csv_path
         self.fuel_range_miles = fuel_range_miles
         self.mpg = mpg
+        self.route_polygon = route_polygon
+
         self.stations = self._load_stations()
 
     def _load_stations(self) -> List[FuelStation]:
         stations = []
-        with open(self.csv_path, newline='') as csvfile:
+        with open(self.csv_path, newline='', encoding='utf-8') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
                 try:
-                    stations.append(FuelStation(
+                    #Now that CSVfile contains co-ordinates, I will directly calculate from here
+                    lat = float(row['Latitude'])
+                    lon = float(row['Longitude'])
+
+                    # If polygon provided, filter by whether it's inside it
+                    if self.route_polygon:
+                        point = Point(lon, lat)
+                        if not self.route_polygon.contains(point):
+                            continue
+
+                    station = FuelStation(
                         name=row['Truckstop Name'],
-                        latitude=float(row['Address'].split(',')[0]),  # NOTE: Not reliable
-                        longitude=float(row['Address'].split(',')[1]),  # Replace this line properly
+                        latitude=lat,
+                        longitude=lon,
                         fuel_price=float(row['Retail Price'])
-                    ))
-                except Exception as e:
-                    continue  # Skip rows with bad data
+                    )
+                    stations.append(station)
+
+                except Exception:
+                    continue  # Ignore bad rows
+
         return stations
 
     def _find_best_station_near_point(

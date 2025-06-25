@@ -67,9 +67,20 @@ def get_route(request):
     # Decode the polyline to a list of (lat, lon) tuples
     route_coords = convert.decode_polyline(route['geometry'])
 
+    from shapely.geometry import LineString
+    # Convert to LineString and buffer to get polygon
+    line = LineString([(pt[1], pt[0]) for pt in route_coords['coordinates']])  # (lon, lat)
+    route_polygon = line.buffer(0.1) #Create a buffer around that route
+
     from .services import FuelPlannerService
-    fuel_planner = FuelPlannerService(csv_path='fuel-prices.csv')
-    fuel_stops, total_cost = fuel_planner.plan_stops(route_coords)
+    import os
+    from django.conf import settings
+    csv_path = os.path.join(settings.BASE_DIR, 'data', 'fuel-prices.csv')  # if stored in /data/
+    fuel_planner = FuelPlannerService(csv_path=csv_path, route_polygon=route_polygon)
+
+    raw_coords = route_coords['coordinates']
+    coords_latlon = [(coord[1], coord[0]) for coord in raw_coords]
+    fuel_stops, total_cost = fuel_planner.plan_stops(coords_latlon)
 
     # Prepare response
     response_data = {
