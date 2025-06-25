@@ -150,6 +150,10 @@ class FuelPlannerService:
     def _find_best_station_near_point(
         self, point: Tuple[float, float], max_distance_miles: float = 25
     ) -> Optional[FuelStation]:
+        """
+        Given a point, find the best (cheapest for our case) fuel station within 25 miles radius
+        We are basically trying to find the cheapest fuel station from a given point
+        """
         lat, lon = point
         degree_buffer = max_distance_miles / 69.0  # Rough approximation
 
@@ -171,6 +175,11 @@ class FuelPlannerService:
         return None
 
     def _get_fuel_stop_points(self, route_coords: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+        """
+        Returns list of potential fuel stop locations.
+        Which means, at which point you would run out of fuel along the route
+        For example: if my path contains 1600 miles, I might stop at 500, 1000 and 1500 miles
+        """
         stops = []
         distance = 0
         for i in range(1, len(route_coords)):
@@ -182,6 +191,16 @@ class FuelPlannerService:
         return stops
 
     def plan_stops(self, route_coords: List[Tuple[float, float]]) -> Tuple[List[dict], float]:
+        """
+        Core method of the service class
+        Basically, what we are trying to figure out here is what are the theoretical stops from _get_fuel_stop_points()
+        For each stop point, find the best fuel station nearby.
+
+        Calculate:
+            How many gallons to refill
+            Calculate the cost (gallons x price per gallon)
+        """
+
         stops = self._get_fuel_stop_points(route_coords)
         stop_results = []
         total_cost = 0
