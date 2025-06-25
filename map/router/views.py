@@ -1,45 +1,28 @@
 from django.shortcuts import render
 from django.http import HttpResponse
-from .serializers import RouteRequestSerializer
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .services import GeoCodeService, RouteService
+from .services import RouteService
+from .validation import RouteValidationService
 
 @api_view(['POST'])
 def get_route(request):
     """
     Get route between two places (start and end)
     """
-
-    serializer = RouteRequestSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(
-            {"error": "Invalid input", "details": serializer.errors}, 
-            status=status.HTTP_400_BAD_REQUEST
-        )
+    validation_service = RouteValidationService()
+    validated_data = validation_service.validate_request(request.data)
+    if isinstance(validated_data, Response):
+        return validated_data
     
-    start_location = serializer.validated_data['start_location']
-    end_location = serializer.validated_data['end_location']
-
-    # Step 1: Get co-ordinates of starting point
-    geo_code_service = GeoCodeService()
-    start_location_cords = geo_code_service.geocode(start_location)
-    print(start_location_cords)
-    if not start_location_cords:
-         return Response(
-                {"error": f"Could not find coordinates for start location: {start_location}"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-    
-    # Step 2: Get co-ordinates of ending point
-    end_location_cords = geo_code_service.geocode(end_location)
-    print(end_location_cords)
-    if not end_location_cords:
-         return Response(
-                {"error": f"Could not find coordinates for end location: {end_location}"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+    # Validate and get coordinates
+    error_response, start_location_cords, end_location_cords = validation_service.validate_coordinates(
+        validated_data['start_location'],
+        validated_data['end_location']
+    )
+    if error_response:
+        return error_response
 
     # Step 3: Now get the route from start to end point
     route_service = RouteService()
@@ -84,8 +67,8 @@ def get_route(request):
 
     # Prepare response
     response_data = {
-        'start_location': start_location,
-        'end_location': end_location,
+        'start_location': validated_data['start_location'],
+        'end_location': validated_data['end_location'],
         'start_coordinates': [start_location_cords[0], start_location_cords[1]],  # [lat, lon]
         'end_coordinates': [end_location_cords[0], end_location_cords[1]],        # [lat, lon]
         'total_distance_miles': round(distance_miles, 2),
