@@ -1,9 +1,19 @@
-import requests
-from typing import Tuple, Optional, Dict
-from django.conf import settings
-from django.core.cache import cache
+# Standard library imports
+import csv
 import hashlib
 import json
+from dataclasses import dataclass
+from typing import Tuple, Optional, Dict, List
+
+# Django imports
+from django.conf import settings
+from django.core.cache import cache
+
+# Third-party imports
+import requests
+from geopy.distance import geodesic
+from shapely.geometry import Point
+
 
 class GeoCodeService:
     """Service for converting a location name to its end co-ordinates"""
@@ -90,10 +100,7 @@ class RouteService:
             return None
 
 
-import csv
-from typing import List, Tuple, Optional
-from geopy.distance import geodesic
-from dataclasses import dataclass
+
 
 @dataclass
 class FuelStation:
@@ -102,7 +109,6 @@ class FuelStation:
     longitude: float
     fuel_price: float
 
-from shapely.geometry import Point
 
 class FuelPlannerService:
     def __init__(self,
